@@ -31,12 +31,11 @@ class ProstateNiftiDataset(Dataset):
     def __getitem__(self, index):
         image_filename = self.images[index]
         image_path = os.path.join(self.image_dir, image_filename)
-        mask_filename = image_filename.replace("_LFOV.nii.gz", "_SEMANTIC.nii.gz")
+        mask_filename = image_filename.replace("_LFOV.nii.gz", "_SEMANTIC_LFOV.nii.gz")
         mask_path = os.path.join(self.mask_dir, mask_filename)
-        # --- THIS SECTION IS MODIFIED FOR TORCHIO ---
 
         # 1. Create a TorchIO Subject
-        #    We add the affine matrix to ensure transforms are applied correctly in physical space
+        # add the affine matrix to ensure transforms are applied correctly in physical space
         subject = tio.Subject(
             mri=tio.ScalarImage(image_path),
             mask=tio.LabelMap(mask_path),
@@ -46,14 +45,11 @@ class ProstateNiftiDataset(Dataset):
         if self.transforms:
             subject = self.transforms(subject)
 
-        # 3. Extract the transformed tensors
-        #    TorchIO returns tensors in [C, D, H, W] format already
+        # Extract the transformed tensors
         image_tensor = subject.mri.data.float()
         mask_tensor = subject.mask.data.squeeze(0).long() # Squeeze channel dim and ensure it's Long
 
-        # --- END OF MODIFIED SECTION ---
-
-        # One-Hot Encode the Mask (this now happens *after* augmentation)
+        # One-Hot Encode the Mask
         mask_one_hot = F.one_hot(mask_tensor, num_classes=self.num_classes)
         mask_one_hot = mask_one_hot.permute(3, 0, 1, 2).float()
 
