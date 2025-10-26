@@ -5,7 +5,56 @@ import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import os
+import open3d as o3d
+import numpy as np
 
+def save_point_cloud_visualization(pred_mask, output_path="results/segmentation.ply"):
+    """
+    Saves a 3D segmentation mask as a colored point cloud.
+    """
+    directory = os.path.dirname(output_path)
+    if not os.path.exists(directory):
+        os.makedirs(directory)
+
+    # Define a color map for the classes (RGB, values 0-1)
+    # Class 0 (background) is skipped.
+    # Adjust colors and number of classes as needed.
+    color_map = {
+        1: [0, 1, 0],   # Class 1: Green (e.g., Prostate)
+        2: [1, 1, 0],   # Class 2: Yellow (e.g., Bladder)
+        3: [1, 0, 0],   # Class 3: Red (e.g., Rectum)
+        4: [0, 0, 1],   # Class 4: Blue (e.g., Bone)
+        5: [1, 0, 1],   # Class 5: Magenta (e.g., Body Outline)
+    }
+
+    all_points = []
+    all_colors = []
+
+    # Find the coordinates of voxels for each class
+    for class_id, color in color_map.items():
+        points = np.argwhere(pred_mask == class_id)
+        if points.size > 0:
+            colors = np.tile(color, (points.shape[0], 1))
+            all_points.append(points)
+            all_colors.append(colors)
+
+    if not all_points:
+        print("No foreground objects found to create point cloud.")
+        return
+
+    # Combine points and colors from all classes
+    all_points = np.vstack(all_points)
+    all_colors = np.vstack(all_colors)
+
+    # Create an open3d PointCloud object
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(all_points)
+    pcd.colors = o3d.utility.Vector3dVector(all_colors)
+
+    # Save the point cloud to a file
+    o3d.io.write_point_cloud(output_path, pcd)
+    print(f"Point cloud visualization saved to {output_path}")
+    
 def dice_loss(pred, target, smooth=1.):
     """
     Calculates the Dice Loss for 2D or 3D segmentation.
