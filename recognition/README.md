@@ -20,7 +20,10 @@ The data is from the **HipMRI Study** , which consists of 3D NIfTI scans. The 
 - `Class 5`: Body Outline
 ### Objective
 
-The goal is to implement and train an “Improved 3D U-Net” to achieve a minimum **Dice Similarity Coefficient (DSC) of 0.7** on the test set for all labels
+The goal is to implement and train an “Improved 3D U-Net” to achieve a minimum **Dice Similarity Coefficient (DSC) of 0.7** on the test set for all labels.
+
+### Notes on Rangpur
+While tests were run on the cluster, due to unreasably long queing times, colab was used to train the model.
 
 ## 2. Algorithm: The “Improved 3D U-Net”
 
@@ -163,7 +166,7 @@ The model achieved the following performance on the **unseen test set**:
 
 Below is a 3D point cloud visualization of a prediction from the test set.
 
-![3dView.png](recognition/unet_brain_segmentation_s4979785/images/3dView.png) _Caption: 3D visualization of segmentation output for a test patient. (Green: Prostate, Yellow: Bladder, Red: Rectum, Blue: Bone, Pink: Body)._
+![3dView.png](unet_brain_segmentation_s4979785/images/3dView.png) _3D visualization of segmentation output for a test patient._
 
 ## 9. References
 
