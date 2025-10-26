@@ -1,0 +1,17 @@
+data/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.env/
+.venv/
+.conda/     
+out/
+.DS_Store
+unet_brain_segmentation/trainRANG.py
+unet_brain_segmentation/test.ipynb
+.gitignore
+unet_brain_segmentation/oldval.py
+unet_brain_segmentation/newval.py
+unet_brain_segmentation/train_log.txt
+.vscode/settings.json
+unet_brain_segmentation/training_metrics.csv
