@@ -46,35 +46,35 @@ class UNet3D(nn.Module):
         self.n_channels = n_channels
         self.n_classes = n_classes
 
-        # --- ENCODER PATH ---
+        # ENCODER PATH
         self.inc = ContextModule3D(n_channels, 64)
         self.down1 = Down3D(64, 128)
         self.down2 = Down3D(128, 256)
         self.down3 = Down3D(256, 512)
         self.down4 = Down3D(512, 1024)
 
-        # --- DECODER PATH ---
+        # DECODER PATH
         # Up 1
         self.up1 = Up3D(1024, 512)
         # Concatenated size is 512 (from up) + 512 (skip) = 1024
         self.loc1 = LocalizationModule3D(1024, 512) # Output has 256 channels
 
-        # Up 2 (CORRECTED)
+        # Up 2
         self.up2 = Up3D(256, 256) # <-- FIX: in_channels should be 256 (from loc1)
         # Concatenated size is 128 (from up) + 256 (skip) = 384
         self.loc2 = LocalizationModule3D(384, 256) # Output has 128 channels
 
-        # Up 3 (CORRECTED)
+        # Up 3
         self.up3 = Up3D(128, 128) # <-- FIX: in_channels should be 128 (from loc2)
         # Concatenated size is 64 (from up) + 128 (skip) = 192
         self.loc3 = LocalizationModule3D(192, 128) # Output has 64 channels
 
-        # Up 4 (CORRECTED)
+        # Up 4
         self.up4 = Up3D(64, 64) # <-- FIX: in_channels should be 64 (from loc3)
         # Concatenated size is 32 (from up) + 64 (skip) = 96
         self.loc4 = LocalizationModule3D(96, 64) # Output has 32 channels
 
-        # --- OUTPUT AND DEEP SUPERVISION ---
+        # OUTPUT AND DEEP SUPERVISION
         self.outc = OutConv3D(32, n_classes)
         self.seg2 = nn.Conv3d(64, n_classes, kernel_size=1)
         self.seg3 = nn.Conv3d(128, n_classes, kernel_size=1)
