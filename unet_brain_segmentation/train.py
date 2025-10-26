@@ -7,6 +7,10 @@ from torch.utils.data import DataLoader
 import argparse
 import os
 from tqdm import tqdm
+from monai.inferers import sliding_window_inference
+from torch.cuda.amp import autocast, GradScaler
+import json
+from sklearn.model_selection import train_test_split
 
 
 # Import your custom modules from the 'src' directory
@@ -36,45 +40,69 @@ val_transforms = tio.Compose([
 ])
 
 def train_one_epoch(loader, model, optimizer, loss_fn, scaler, device):
-    """Runs one full epoch of training."""
+    model.train()
     loop = tqdm(loader, leave=True)
-    
-    for batch_idx, (data, targets) in enumerate(loop):
-        data = data.to(device)
-        targets = targets.to(device)
 
-        # Forward pass with Automatic Mixed Precision
-        with torch.amp.autocast(device_type='cuda'):
+    for batch_idx, (data, targets) in enumerate(loop):
+        data = data.to(device, non_blocking=True)
+        targets = targets.to(device, non_blocking=True)
+
+        optimizer.zero_grad(set_to_none=True)
+
+        # Forward + loss in mixed precision
+        with autocast(dtype=torch.float16):
             predictions = model(data)
             loss = loss_fn(predictions, targets)
 
-        # Backward pass
-        optimizer.zero_grad()
+        # Backward pass with scaled gradients
         scaler.scale(loss).backward()
+
+        # --- ADD GRADIENT CLIPPING HERE ---
+        # Unscale gradients before clipping to see their true values
+        scaler.unscale_(optimizer)
+        # Clip the gradients to a maximum norm of 1.0 to prevent explosion
+        torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+        # --- END OF ADDITION ---
+
+        # Optimizer step
         scaler.step(optimizer)
         scaler.update()
 
-        # Update tqdm loop
         loop.set_postfix(loss=loss.item())
 
-def validate_model(loader, model, device, num_classes):
-    """Validates the model and returns DSC scores."""
+def validate_model(loader, model, device, num_classes, roi_size=(128,128,128), overlap=0.25):
+    """
+    Runs sliding-window inference on full volumes using mixed precision.
+    Returns average DSC scores per class.
+    """
     model.eval()
     all_dsc_scores = []
 
     with torch.no_grad():
         for x, y in loader:
-            x = x.to(device)
-            y = y.to(device)
-            preds = model(x)
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
+
+            # --- Sliding-window inference ---
+            with autocast(dtype=torch.float16):
+                preds = sliding_window_inference(
+                    inputs=x,
+                    roi_size=roi_size,
+                    sw_batch_size=1,    # you can increase if GPU allows
+                    predictor=model,
+                    overlap=overlap
+                )
+
+            # --- Compute DSC ---
             scores = dice_score(preds, y)
             all_dsc_scores.append(scores)
     
-    # Calculate average DSC for each class across all batches
+    # Average DSC per class
     avg_dsc_per_class = torch.tensor(all_dsc_scores).mean(axis=0).tolist()
     
-    model.train() # Set model back to training mode
+    model.train()  # back to training mode
     return avg_dsc_per_class
+
 
 def main(args):
     # --- Setup ---
@@ -84,17 +112,35 @@ def main(args):
     # Create checkpoint directory if it doesn't exist
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
-    # --- Data Loading ---
-    base_img_dir = "/home/groups/comp3710/HipMRI_Study_open/semantic_MRs"
-    base_mask_dir = "/home/groups/comp3710/HipMRI_Study_open/semantic_labels_only"
+    scaler = GradScaler()
 
-    # Create a validation split
+
+    # --- Data Loading ---
+    base_img_dir = "/content/data/semantic_MRs_anon"
+    base_mask_dir = "/content/data/semantic_labels_anon"
     all_filenames = sorted([f for f in os.listdir(base_img_dir) if f.endswith(('.nii', '.nii.gz'))])
-    train_files, val_files = train_test_split(
+
+    # First, split into training (80%) and a temporary set for val/test (20%)
+    train_files, temp_files = train_test_split(
         all_filenames,
-        test_size=0.2,      # 20% of the data will be for validation
-        random_state=42     # The "seed" for the random shuffle
+        test_size=0.2,
+        random_state=42
     )
+
+    # Now, split the temporary set in half to get validation (10%) and test (10%)
+    val_files, test_files = train_test_split(
+        temp_files,
+        test_size=0.5, # 50% of the 20% temp set = 10% of the total
+        random_state=42
+    )
+
+    # Save the test set filenames so your 'evaluate.py' script can use them
+    with open('test_set_files.json', 'w') as f:
+        json.dump(test_files, f)
+    with open('val_set_files.json', 'w') as f:
+        json.dump(val_files, f)
+
+    print(f"Dataset split: {len(train_files)} train, {len(val_files)} validation, {len(test_files)} test.")
 
     NUM_CLASSES = 6
 
