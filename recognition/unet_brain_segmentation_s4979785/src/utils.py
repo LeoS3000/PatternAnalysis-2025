@@ -18,13 +18,12 @@ def save_point_cloud_visualization(pred_mask, output_path="results/segmentation.
 
     # Define a color map for the classes (RGB, values 0-1)
     # Class 0 (background) is skipped.
-    # Adjust colors and number of classes as needed.
     color_map = {
-        1: [0, 1, 0],   # Class 1: Green (e.g., Prostate)
-        2: [1, 1, 0],   # Class 2: Yellow (e.g., Bladder)
-        3: [1, 0, 0],   # Class 3: Red (e.g., Rectum)
-        4: [0, 0, 1],   # Class 4: Blue (e.g., Bone)
-        5: [1, 0, 1],   # Class 5: Magenta (e.g., Body Outline)
+        1: [0, 1, 0],   # Class 1: Green
+        2: [1, 1, 0],   # Class 2: Yellow
+        3: [1, 0, 0],   # Class 3: Red
+        4: [0, 0, 1],   # Class 4: Blue
+        5: [1, 0, 1],   # Class 5: Magenta
     }
 
     all_points = []

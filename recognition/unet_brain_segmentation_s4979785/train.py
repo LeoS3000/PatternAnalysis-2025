@@ -16,7 +16,7 @@ from sklearn.model_selection import train_test_split
 # Import your custom modules from the 'src' directory
 from sklearn.model_selection import train_test_split
 from src.dataset import ProstateNiftiDataset
-from src.model import UNet3D
+from src.models import UNet3D
 from src.utils import dice_loss, dice_score, save_checkpoint
 
 import torchio as tio

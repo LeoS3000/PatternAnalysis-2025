@@ -2,7 +2,7 @@
 
 # --- Slurm Job Directives ---
 #SBATCH --job-name=unet3D_sanity_check
-#SBATCH --partition=a100-test          # IMPORTANT: Use the test partition
+#SBATCH --partition=a100-test          
 #SBATCH --time=00:20:00
 #SBATCH --gres=gpu:1
 #SBATCH --mail-type=END,FAIL
