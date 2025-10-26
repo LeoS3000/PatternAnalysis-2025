@@ -163,7 +163,7 @@ The model achieved the following performance on the **unseen test set**:
 
 Below is a 3D point cloud visualization of a prediction from the test set.
 
-![recognition/unet_brain_segmentation_s4979785/images/3dView.png] _Caption: 3D visualization of segmentation output for a test patient. (Green: Prostate, Yellow: Bladder, Red: Rectum, Blue: Bone, Pink: Body)._
+![3dView.png](recognition/unet_brain_segmentation_s4979785/images/3dView.png) _Caption: 3D visualization of segmentation output for a test patient. (Green: Prostate, Yellow: Bladder, Red: Rectum, Blue: Bone, Pink: Body)._
 
 ## 9. References
 
