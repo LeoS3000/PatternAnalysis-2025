@@ -12,9 +12,7 @@ from torch.cuda.amp import autocast, GradScaler
 import json
 from sklearn.model_selection import train_test_split
 
-
-# Import your custom modules from the 'src' directory
-from sklearn.model_selection import train_test_split
+# import your custom modules from the 'src' directory
 from src.dataset import ProstateNiftiDataset
 from src.models import UNet3D
 from src.utils import dice_loss, dice_score, save_checkpoint
@@ -22,17 +20,17 @@ from src.utils import dice_loss, dice_score, save_checkpoint
 import torchio as tio
 
 TARGET_SIZE = (128, 128, 128)
-# Define the 3D augmentation pipeline
+# define 3D augmentation pipeline
 transforms = tio.Compose([
     tio.CropOrPad(TARGET_SIZE, padding_mode=0),
-    tio.RandomFlip(axes=('LR',)),          # Randomly flip left-right with a 50% chance
+    tio.RandomFlip(axes=('LR',)),          # randomly flip left-right with a 50% chance
     tio.RandomAffine(
-        scales=(0.9, 1.2),                 # Randomly scale the image
-        degrees=15,                        # Randomly rotate by up to 15 degrees
+        scales=(0.9, 1.2),                 # randomly scale the image
+        degrees=15,                        # randomly rotate by up to 15 degrees
         isotropic=True,
     ),
-    tio.RandomNoise(std=0.01),             # Add a bit of random noise
-    tio.RandomBlur(std=(0, 1)),            # Apply a random blur
+    tio.RandomNoise(std=0.01),             # add a bit of random noise
+    tio.RandomBlur(std=(0, 1)),            # apply a random blur
 ])
 
 val_transforms = tio.Compose([
@@ -49,20 +47,18 @@ def train_one_epoch(loader, model, optimizer, loss_fn, scaler, device):
 
         optimizer.zero_grad(set_to_none=True)
 
-        # Forward + loss in mixed precision
+        # forward + loss in mixed precision
         with autocast(dtype=torch.float16):
             predictions = model(data)
             loss = loss_fn(predictions, targets)
 
-        # Backward pass with scaled gradients
+        # backward pass with scaled gradients
         scaler.scale(loss).backward()
 
-        # --- ADD GRADIENT CLIPPING HERE ---
-        # Unscale gradients before clipping to see their true values
+        # unscale gradients before clipping to see their true values
         scaler.unscale_(optimizer)
         # Clip the gradients to a maximum norm of 1.0 to prevent explosion
         torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-        # --- END OF ADDITION ---
 
         # Optimizer step
         scaler.step(optimizer)
@@ -88,16 +84,16 @@ def validate_model(loader, model, device, num_classes, roi_size=(128,128,128), o
                 preds = sliding_window_inference(
                     inputs=x,
                     roi_size=roi_size,
-                    sw_batch_size=1,    # you can increase if GPU allows
+                    sw_batch_size=1,   
                     predictor=model,
                     overlap=overlap
                 )
 
-            # --- Compute DSC ---
+            # compute DSC
             scores = dice_score(preds, y)
             all_dsc_scores.append(scores)
     
-    # Average DSC per class
+    # average DSC per class
     avg_dsc_per_class = torch.tensor(all_dsc_scores).mean(axis=0).tolist()
     
     model.train()  # back to training mode
@@ -109,32 +105,32 @@ def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Using device: {device}")
     
-    # Create checkpoint directory if it doesn't exist
+    # create checkpoint directory if it doesn't exist
     os.makedirs(args.checkpoint_dir, exist_ok=True)
 
     scaler = GradScaler()
 
 
-    # --- Data Loading ---
+    # data Loading – change paths if training on rangpur cluster
     base_img_dir = "/content/data/semantic_MRs_anon"
     base_mask_dir = "/content/data/semantic_labels_anon"
     all_filenames = sorted([f for f in os.listdir(base_img_dir) if f.endswith(('.nii', '.nii.gz'))])
 
-    # First, split into training (80%) and a temporary set for val/test (20%)
+    # split into training (80%) and a temporary set for val/test (20%)
     train_files, temp_files = train_test_split(
         all_filenames,
         test_size=0.2,
         random_state=42
     )
 
-    # Now, split the temporary set in half to get validation (10%) and test (10%)
+    # split the temporary set in half to get validation (10%) and test (10%)
     val_files, test_files = train_test_split(
         temp_files,
         test_size=0.5, # 50% of the 20% temp set = 10% of the total
         random_state=42
     )
 
-    # Save the test set filenames so your 'evaluate.py' script can use them
+    # Save the test set filenames
     with open('test_set_files.json', 'w') as f:
         json.dump(test_files, f)
     with open('val_set_files.json', 'w') as f:
@@ -147,7 +143,7 @@ def main(args):
     train_dataset = ProstateNiftiDataset(
         image_dir=base_img_dir,
         mask_dir=base_mask_dir,
-        filenames=train_files,  # <-- Pass the list of training files
+        filenames=train_files, 
         num_classes=NUM_CLASSES,
         transforms=transforms
     )
@@ -155,7 +151,7 @@ def main(args):
     val_dataset = ProstateNiftiDataset(
         image_dir=base_img_dir,
         mask_dir=base_mask_dir,
-        filenames=val_files,    # <-- Pass the list of validation files
+        filenames=val_files,    
         num_classes=NUM_CLASSES,
         transforms=val_transforms
     )
@@ -210,8 +206,6 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train UNet for Brain Segmentation')
-    # ... all your parser.add_argument lines ...
-    # Example arguments (add your actual arguments as needed):
     parser.add_argument('--batch_size', type=int, default=4)
     parser.add_argument('--num_workers', type=int, default=2)
     parser.add_argument('--epochs', type=int, default=50)
