@@ -12,7 +12,7 @@ from monai.inferers import sliding_window_inference
 from src.models import UNet3D 
 from src.utils import save_point_cloud_visualization
 
-# Define the target size used during training for consistency
+# define the target size used during training for consistency
 TARGET_SIZE = (128, 128, 128)
 
 def predict(args):
@@ -29,7 +29,7 @@ def predict(args):
     print(f"=> Loading checkpoint from {args.checkpoint_path}")
     checkpoint = torch.load(args.checkpoint_path, map_location=device)
     model.load_state_dict(checkpoint['state_dict'])
-    model.eval() # Set model to evaluation mode
+    model.eval() # set model to evaluation mode
 
     # load and preprocess
     print(f"Loading and preprocessing input image: {args.input_path}")
@@ -37,8 +37,6 @@ def predict(args):
     # define the same basic transforms used for validation
     transforms = tio.Compose([
         tio.CropOrPad(TARGET_SIZE, padding_mode=0),
-        # You may want to add tio.RescaleIntensity() or other normalization here
-        # if your model expects it and it's not part of the network itself.
     ])
 
     # load the image using TorchIO, which also stores the affine matrix for saving
@@ -48,13 +46,12 @@ def predict(args):
     subject = transforms(subject)
     input_tensor = subject.mri.data.float().unsqueeze(0).to(device, non_blocking=True)
     
-    # run Inference
+    # run inference
     print("Running sliding-window inference...")
     with torch.no_grad():
-        # Use mixed precision for performance, matching the validation function
+        # use mixed precision for performance, matching the validation function
         with torch.cuda.amp.autocast(dtype=torch.float16):
-            # Using sliding_window_inference is crucial for handling large images
-            # that don't fit into memory at once. [cite: 126]
+            # Using sliding_window_inference is crucial for handling large images that don't fit into memory at once
             prediction = sliding_window_inference(
                 inputs=input_tensor,
                 roi_size=TARGET_SIZE,
@@ -63,25 +60,24 @@ def predict(args):
                 overlap=0.25 # Overlap from training script
             )
 
-    # --- Post-process and Save Output ---
-    # Convert model output (logits) to a segmentation mask
+    # Convert model (logits) to a segmentation mask
     predicted_mask = torch.argmax(prediction.squeeze(0), dim=0).cpu().numpy().astype(np.uint8)
     
     print(f"Prediction generated with shape: {predicted_mask.shape}")
     
-    # Ensure output directory exists
+    # ensure output directory exists
     output_dir = os.path.dirname(args.output_path)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    # 1. Save as NIfTI file
-    # We use the affine matrix from the original loaded image to preserve its orientation
+    # save as NIfTI file
+    # using the affine matrix from the original loaded image to preserve its orientation
     nifti_img = nib.Nifti1Image(predicted_mask, affine=subject.mri.affine)
     nifti_output_path = args.output_path + ".nii.gz"
     nib.save(nifti_img, nifti_output_path)
     print(f"Segmentation mask saved to: {nifti_output_path}")
 
-    # 2. Save as 3D Point Cloud visualization
+    # save as 3D point cloud visualization
     ply_output_path = args.output_path + ".ply"
     save_point_cloud_visualization(predicted_mask, output_path=ply_output_path)
 
