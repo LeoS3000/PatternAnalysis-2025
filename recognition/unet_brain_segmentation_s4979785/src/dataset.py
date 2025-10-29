@@ -1,11 +1,8 @@
 # src/dataset.py
 
-import torch
 from torch.utils.data import Dataset
 import torch.nn.functional as F
 import os
-import numpy as np
-import nibabel as nib
 import torchio as tio
 
 class ProstateNiftiDataset(Dataset):
