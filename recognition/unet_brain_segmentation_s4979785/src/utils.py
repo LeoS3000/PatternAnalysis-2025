@@ -16,8 +16,8 @@ def save_point_cloud_visualization(pred_mask, output_path="results/segmentation.
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-    # Define a color map for the classes (RGB, values 0-1)
-    # Class 0 (background) is skipped.
+    # define a color map for the classes (RGB, values 0-1)
+    # class 0 background is skipped
     color_map = {
         1: [0, 1, 0],   # Class 1: Green
         2: [1, 1, 0],   # Class 2: Yellow
@@ -29,7 +29,7 @@ def save_point_cloud_visualization(pred_mask, output_path="results/segmentation.
     all_points = []
     all_colors = []
 
-    # Find the coordinates of voxels for each class
+    # find the coordinates of voxels for each class
     for class_id, color in color_map.items():
         points = np.argwhere(pred_mask == class_id)
         if points.size > 0:
@@ -41,16 +41,16 @@ def save_point_cloud_visualization(pred_mask, output_path="results/segmentation.
         print("No foreground objects found to create point cloud.")
         return
 
-    # Combine points and colors from all classes
+    # combine points and colors from all classes
     all_points = np.vstack(all_points)
     all_colors = np.vstack(all_colors)
 
-    # Create an open3d PointCloud object
+    # create an open3d PointCloud object
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(all_points)
     pcd.colors = o3d.utility.Vector3dVector(all_colors)
 
-    # Save the point cloud to a file
+    # save the point cloud to a file
     o3d.io.write_point_cloud(output_path, pcd)
     print(f"Point cloud visualization saved to {output_path}")
     
@@ -65,7 +65,7 @@ def dice_loss(pred, target, smooth=1.):
         torch.Tensor: The calculated Dice loss.
     """
     pred = F.softmax(pred, dim=1)
-    # Flatten all dimensions except batch and channel
+    # flatten all dimensions except batch and channel
     pred = pred.contiguous().view(pred.shape[0], pred.shape[1], -1)
     target = target.contiguous().view(target.shape[0], target.shape[1], -1)
     
@@ -86,14 +86,14 @@ def dice_score(pred, target, smooth=1.):
         list: A list of DSC scores for each class.
     """
     pred = F.softmax(pred, dim=1)
-    # Convert prediction to a hard, one-hot encoded mask
+    # convert prediction to a hard, one-hot encoded mask
     pred_mask = torch.argmax(pred, dim=1)
     pred_one_hot = F.one_hot(pred_mask, num_classes=target.shape[1]).permute(0, 4, 1, 2, 3) if pred_mask.ndim == 4 else F.one_hot(pred_mask, num_classes=target.shape[1]).permute(0, 3, 1, 2)
     pred_one_hot = pred_one_hot.float()
 
     dice_per_class = []
     num_classes = target.shape[1]
-    # Flatten all dimensions except batch and channel
+    # flatten all dimensions except batch and channel
     for i in range(num_classes):
         pred_c = pred_one_hot[:, i].contiguous().view(pred_one_hot.shape[0], -1)
         target_c = target[:, i].contiguous().view(target.shape[0], -1)
@@ -138,7 +138,7 @@ def visualize_segmentation(image, true_mask, pred_mask, output_path="results/seg
     axes[0].set_title('Original MR Image')
     axes[0].axis('off')
     
-    # Use the new display-ready variables
+    # use the new display-ready variables
     vmax_val = true_mask_display.max()
     axes[1].imshow(true_mask_display, cmap='jet', vmin=0, vmax=vmax_val)
     axes[1].set_title('Ground Truth Mask')
