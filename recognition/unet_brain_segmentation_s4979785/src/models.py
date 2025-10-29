@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# LocalizationModule3D: 3x3x3 conv, then 1x1x1 conv halving channels
+# localizationModule3D: 3x3x3 conv, then 1x1x1 conv halving channels
 class LocalizationModule3D(nn.Module):
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -15,7 +15,7 @@ class LocalizationModule3D(nn.Module):
         x = self.relu(self.conv2(x))
         return x
 
-# ContextModule3D: Pre-activation residual block with InstanceNorm, LeakyReLU, Dropout, skip connection
+# contextModule3D: Pre-activation residual block with InstanceNorm, LeakyReLU, Dropout, skip connection
 class ContextModule3D(nn.Module):
     def __init__(self, in_channels, out_channels, dropout_p=0.3):
         super().__init__()
@@ -60,17 +60,17 @@ class UNet3D(nn.Module):
         self.loc1 = LocalizationModule3D(1024, 512) # Output has 256 channels
 
         # Up 2
-        self.up2 = Up3D(256, 256) # <-- FIX: in_channels should be 256 (from loc1)
+        self.up2 = Up3D(256, 256)
         # Concatenated size is 128 (from up) + 256 (skip) = 384
         self.loc2 = LocalizationModule3D(384, 256) # Output has 128 channels
 
         # Up 3
-        self.up3 = Up3D(128, 128) # <-- FIX: in_channels should be 128 (from loc2)
+        self.up3 = Up3D(128, 128) 
         # Concatenated size is 64 (from up) + 128 (skip) = 192
         self.loc3 = LocalizationModule3D(192, 128) # Output has 64 channels
 
         # Up 4
-        self.up4 = Up3D(64, 64) # <-- FIX: in_channels should be 64 (from loc3)
+        self.up4 = Up3D(64, 64)
         # Concatenated size is 32 (from up) + 64 (skip) = 96
         self.loc4 = LocalizationModule3D(96, 64) # Output has 32 channels
 
@@ -90,18 +90,18 @@ class UNet3D(nn.Module):
         x = self.loc1(x)
         x = self.up2(x, x3)
         x = self.loc2(x)
-        seg3_out = self.seg3(x)  # Deep supervision output 1 (feature map 128->64)
+        seg3_out = self.seg3(x)  # Deep supervision output 1 
         x = self.up3(x, x2)
         x = self.loc3(x)
-        seg2_out = self.seg2(x)  # Deep supervision output 2 (feature map 64->32)
+        seg2_out = self.seg2(x)  # Deep supervision output 2
         x = self.up4(x, x1)
         x = self.loc4(x)
         logits = self.outc(x)
 
-        # Upsample deep supervision outputs to match final output size
+        # upsample deep supervision outputs to match final output size
         seg3_up = F.interpolate(seg3_out, size=logits.shape[2:], mode='trilinear', align_corners=True)
         seg2_up = F.interpolate(seg2_out, size=logits.shape[2:], mode='trilinear', align_corners=True)
-        # Sum all outputs
+        # sum all
         logits = logits + seg2_up + seg3_up
         return logits
 
@@ -141,16 +141,16 @@ class Up3D(nn.Module):
     """Upscaling then double conv for 3D"""
     def __init__(self, in_channels, out_channels):
         super().__init__()
-        # Instead of transposed conv, use interpolate + conv
+        # instead of transposed conv, use interpolate + conv
         self.up_conv = nn.Conv3d(in_channels, in_channels // 2, kernel_size=3, padding=1)
         self.conv = None  # Will be replaced by localization module in next step
         self.out_channels = out_channels
 
     def forward(self, x1, x2):
-        # Upsample by trilinear interpolation
+        # upsample by trilinear interpolation
         x1 = F.interpolate(x1, scale_factor=2, mode='trilinear', align_corners=True)
         x1 = self.up_conv(x1)
-        # Pad if needed
+        # pad if needed
         diffD = x2.size()[2] - x1.size()[2]
         diffH = x2.size()[3] - x1.size()[3]
         diffW = x2.size()[4] - x1.size()[4]
@@ -158,7 +158,7 @@ class Up3D(nn.Module):
                         diffH // 2, diffH - diffH // 2,
                         diffD // 2, diffD - diffD // 2])
         x = torch.cat([x2, x1], dim=1)
-        # The localization module will be applied after concatenation in the next step
+        # the localization module will be applied after concatenation
         return x
 
 class OutConv3D(nn.Module):
